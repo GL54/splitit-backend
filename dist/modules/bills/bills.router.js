@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.billsRouter = void 0;
+const express_1 = require("express");
+const bills_controller_1 = require("./bills.controller");
+const auth0_1 = require("../../middleware/auth0");
+exports.billsRouter = (0, express_1.Router)();
+exports.billsRouter.post('/', auth0_1.optionalAuth, bills_controller_1.createBillHandler);
+exports.billsRouter.get('/share/:token', bills_controller_1.getBillByTokenHandler);
+exports.billsRouter.get('/:id', bills_controller_1.getBillHandler);
+exports.billsRouter.post('/:id/join', auth0_1.optionalAuth, bills_controller_1.joinBillHandler);
+exports.billsRouter.post('/:id/allocations', auth0_1.optionalAuth, bills_controller_1.saveAllocationsHandler);
+exports.billsRouter.post('/:id/payments', auth0_1.optionalAuth, bills_controller_1.recordPaymentHandler);

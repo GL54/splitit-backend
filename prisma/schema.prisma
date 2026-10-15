@@ -1,0 +1,126 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String        @id @default(uuid())
+  auth0Id         String?       @unique
+  name            String
+  phone           String?       @unique
+  email           String?
+  // Kept for backwards compat — points to primary UPI
+  upiId           String?
+  upiVerified     Boolean       @default(false)
+  upiPayeeName    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  upiIds          UserUpi[]
+  billsOwned      Bill[]        @relation("BillOwner")
+  participations  Participant[]
+}
+
+// Multiple UPI IDs per user
+model UserUpi {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  upiId        String
+  bankName     String   @default("UPI")
+  handle       String   @default("")
+  payeeName    String?
+  isVerified   Boolean  @default(false)
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, upiId])
+}
+
+model Bill {
+  id                 String         @id @default(uuid())
+  ownerId            String
+  owner              User           @relation("BillOwner", fields: [ownerId], references: [id])
+  merchantName       String
+  title              String
+  currency           String         @default("INR")
+  subtotalPaise      Int            @default(0)
+  taxPaise           Int            @default(0)
+  discountPaise      Int            @default(0)
+  serviceChargePaise Int            @default(0)
+  totalPaise         Int            @default(0)
+  shareToken         String         @unique
+  status             String         @default("DRAFT")
+  originalImagePath  String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  items              BillItem[]
+  participants       Participant[]
+  payments           Payment[]
+}
+
+model BillItem {
+  id              String           @id @default(uuid())
+  billId          String
+  bill            Bill             @relation(fields: [billId], references: [id], onDelete: Cascade)
+  name            String
+  quantity        Int              @default(1)
+  unitPricePaise  Int              @default(0)
+  totalPricePaise Int              @default(0)
+  taxable         Boolean          @default(true)
+  orderIndex      Int              @default(0)
+
+  allocations     ItemAllocation[]
+}
+
+model Participant {
+  id                 String           @id @default(uuid())
+  billId             String
+  bill               Bill             @relation(fields: [billId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?            @relation(fields: [userId], references: [id])
+  name               String
+  isGuest            Boolean          @default(true)
+  claimedAmountPaise Int              @default(0)
+  taxAmountPaise     Int              @default(0)
+  tipAmountPaise     Int              @default(0)
+  totalOwedPaise     Int              @default(0)
+  paymentStatus      String           @default("UNPAID")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  allocations        ItemAllocation[]
+  payments           Payment[]
+}
+
+model ItemAllocation {
+  id              String      @id @default(uuid())
+  billItemId      String
+  billItem        BillItem    @relation(fields: [billItemId], references: [id], onDelete: Cascade)
+  participantId   String
+  participant     Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  quantityClaimed Int         @default(1)
+
+  @@unique([billItemId, participantId])
+}
+
+model Payment {
+  id            String       @id @default(uuid())
+  billId        String
+  bill          Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   Participant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  payerUpiId    String?
+  payeeUpiId    String
+  amountPaise   Int
+  referenceId   String?
+  status        String       @default("PENDING")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
