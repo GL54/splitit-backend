@@ -481,7 +481,7 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
       Pay with Google Pay
     </a>
     <p id="gpayHint" style="font-size:12px;color:var(--grey);text-align:center;margin-top:10px;display:none;">
-      Opens Google Pay with this amount and UPI ID filled in.
+      If Google Pay says the bank limit is exceeded, the money was not sent. Scan the QR from inside Google Pay, or pay this UPI ID the amount shown.
     </p>
     <button class="btn btn-upi-manual" id="payUpiBtn" onclick="payViaUpi()" style="display:none">
       Pay via Any UPI App (PhonePe / Paytm)
@@ -797,29 +797,19 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
   function upiQuery() {
     const myTotal = calcMyTotal();
     const amountRs = (myTotal / 100).toFixed(2);
-    const tn = 'SplitIt: ' + (BILL.title || BILL.merchantName || 'Bill');
-    const fields = [
-      ['pa', BILL.ownerUpiId],
-      ['pn', BILL.ownerName || 'SplitIt'],
-      ['am', amountRs],
-      ['cu', 'INR'],
-      ['tn', tn],
-    ];
-    return fields.map(function (pair) {
-      return pair[0] + '=' + encodeURIComponent(pair[1]);
-    }).join('&');
+    // Keep @ in the UPI ID. Encoding it makes Google Pay show the right
+    // amount and then refuse the payment as a bank limit.
+    const pa = String(BILL.ownerUpiId || '').trim();
+    return 'pa=' + pa + '&am=' + amountRs + '&cu=INR&tn=SplitIt';
   }
 
   function gpayHref() {
     const q = upiQuery();
     const isAndroid = /Android/i.test(navigator.userAgent);
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isAndroid) {
-      // Chrome only opens Google Pay from an intent URL during the click.
-      return 'intent://pay?' + q + '#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end';
-    }
-    if (isIOS) {
-      return 'gpay://upi/pay?' + q;
+      // Chooser, not a forced Google Pay handoff. A forced handoff to a
+      // personal @okaxis ID is what the bank rejects as a limit error.
+      return 'intent://pay?' + q + '#Intent;scheme=upi;end';
     }
     return 'upi://pay?' + q;
   }
