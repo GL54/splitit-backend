@@ -147,7 +147,7 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
     }
     .input-field {
       width: 100%;
-      background: var(--card);
+      background: var(--bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 14px 16px;
@@ -249,6 +249,22 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
       background: var(--bg);
       border-top: 1px solid var(--border);
       padding: 16px 16px 24px;
+      z-index: 5;
+    }
+    /* Hidden steps must not leave a fixed bar on top of the name field. */
+    [hidden] { display: none !important; }
+    .name-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 16px 16px;
+      margin-bottom: 16px;
+    }
+    .name-help {
+      font-size: 13px;
+      color: var(--grey);
+      margin: 0 0 16px;
+      line-height: 1.45;
     }
     .summary-row {
       display: flex;
@@ -274,6 +290,8 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
       align-items: center;
       justify-content: center;
       gap: 8px;
+      text-decoration: none;
+      box-sizing: border-box;
     }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn:not(:disabled):active { transform: scale(0.98); }
@@ -379,7 +397,7 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
     .toast.show { transform: translateX(-50%) translateY(0); }
 
     /* Animations */
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .fade-in { animation: fadeIn 0.3s ease both; }
   </style>
 </head>
@@ -408,44 +426,38 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
   <!-- STEP 1: Name -->
   <div id="step1" class="fade-in">
     <div class="step-label">Step 1 — Who are you?</div>
-    <div class="name-section">
+    <div class="name-card">
       <label class="field-label" for="nameInput">Your name</label>
+      <p class="name-help">So the table knows which share is yours. This is not the UPI name.</p>
       <input
         type="text"
         id="nameInput"
         class="input-field"
-        placeholder="Enter your name"
-        autocomplete="name"
-        autofocus
+        name="guestName"
+        placeholder="Type your name"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="words"
+        spellcheck="false"
+        enterkeyhint="next"
       />
-    </div>
-    <div class="summary-footer">
-      <button class="btn btn-primary" onclick="goStep2()" id="step1Btn">
-        Next — Select Items →
+      <button class="btn btn-primary" onclick="goStep2()" id="step1Btn" style="margin-top:16px">
+        Next — Select what you ate
       </button>
     </div>
   </div>
 
   <!-- STEP 2: Select Items -->
-  <div id="step2" style="display:none" class="fade-in">
+  <div id="step2" hidden class="fade-in">
     <div class="step-label">Step 2 — What did you have?</div>
     <div class="items-section">
       <div class="items-hint">Tap items you had. Long press multi-qty items to split quantity.</div>
       <div id="itemsList"></div>
     </div>
-    <div class="summary-footer">
-      <div class="summary-row">
-        <span class="summary-label">You pay</span>
-        <span class="summary-amount" id="myTotal">₹0</span>
-      </div>
-      <button class="btn btn-primary" onclick="goStep3()" id="step2Btn" disabled>
-        Calculate My Share →
-      </button>
-    </div>
   </div>
 
   <!-- STEP 3: Pay -->
-  <div id="step3" class="payment-section">
+  <div id="step3" class="payment-section" hidden>
     <div class="step-label">Step 3 — Pay your share</div>
 
     <div class="pay-breakdown" id="payBreakdown"></div>
@@ -465,10 +477,12 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
     <!-- QR Code for desktop / quick scan -->
     <div id="qrCodeContainer" style="text-align:center; display:none; margin: 16px 0;"></div>
 
-    <button class="btn btn-gpay" id="payGpayBtn" onclick="payViaGPay()" disabled>
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Google_Pay_Logo.svg/1200px-Google_Pay_Logo.svg.png" height="18" alt="GPay" style="filter:brightness(10)"/>
-      Pay via Google Pay
-    </button>
+    <a class="btn btn-gpay" id="payGpayBtn" href="#" onclick="return payViaGPay(event)">
+      Pay with Google Pay
+    </a>
+    <p id="gpayHint" style="font-size:12px;color:var(--grey);text-align:center;margin-top:10px;display:none;">
+      Opens Google Pay with this amount and UPI ID filled in.
+    </p>
     <button class="btn btn-upi-manual" id="payUpiBtn" onclick="payViaUpi()" style="display:none">
       Pay via Any UPI App (PhonePe / Paytm)
     </button>
@@ -481,7 +495,7 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
   </div>
 
   <!-- SUCCESS -->
-  <div id="successSection" class="success-section">
+  <div id="successSection" class="success-section" hidden>
     <div class="success-icon">✅</div>
     <div class="success-title">Done!</div>
     <div class="success-subtitle">Payment initiated in your UPI app.<br>Show confirmation to the bill owner.</div>
@@ -492,11 +506,21 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
   </div>
 </div>
 
+<div class="summary-footer" id="step2Footer" hidden>
+  <div class="summary-row">
+    <span class="summary-label">You pay</span>
+    <span class="summary-amount" id="myTotal">₹0</span>
+  </div>
+  <button class="btn btn-primary" onclick="goStep3()" id="step2Btn" disabled>
+    Calculate My Share →
+  </button>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
-  const BILL = ${billDataJson};
-  const ITEMS = ${itemsJson};
+  const BILL = ${safeJsonForScript(billDataJson)};
+  const ITEMS = ${safeJsonForScript(itemsJson)};
   const selections = {}; // itemId -> { selected, qty }
 
   // Read URL search parameters for UPI ID and Owner Name if present
@@ -518,7 +542,8 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
   // ─── Utils ──────────────────────────────────────
   function fmtRupees(paise) {
     const r = Math.round(paise) / 100;
-    return '₹' + r.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const digits = Number.isInteger(r) ? 0 : 2;
+    return '₹' + r.toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: 2 });
   }
   function showToast(msg) {
     const t = document.getElementById('toast');
@@ -547,24 +572,32 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
   }
 
   // ─── Step Navigation ───────────────────────────
+  function showStep(id) {
+    ['step1', 'step2', 'step3', 'successSection'].forEach(function (stepId) {
+      const el = document.getElementById(stepId);
+      if (!el) return;
+      el.hidden = stepId !== id;
+      el.classList.toggle('active', stepId === id);
+    });
+    const footer = document.getElementById('step2Footer');
+    if (footer) footer.hidden = id !== 'step2';
+  }
+
   function goStep1() {
-    document.getElementById('step1').style.display = '';
-    document.getElementById('step2').style.display = 'none';
-    document.getElementById('step3').classList.remove('active');
-    document.getElementById('successSection').classList.remove('active');
+    showStep('step1');
+    const input = document.getElementById('nameInput');
+    if (input) input.focus();
     updatePills(0);
   }
 
   function goStep2() {
     const name = document.getElementById('nameInput').value.trim();
     if (!name) {
-      showToast('Please enter your name first');
+      showToast('Type your name, then continue');
       document.getElementById('nameInput').focus();
       return;
     }
-    document.getElementById('step1').style.display = 'none';
-    document.getElementById('step2').style.display = '';
-    document.getElementById('step3').classList.remove('active');
+    showStep('step2');
     updatePills(1);
     renderItems();
   }
@@ -575,8 +608,7 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
       showToast('Select at least one item first');
       return;
     }
-    document.getElementById('step2').style.display = 'none';
-    document.getElementById('step3').classList.add('active');
+    showStep('step3');
     updatePills(2);
     renderPayStep(myTotal);
   }
@@ -658,24 +690,17 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
     return item.unitPricePaise * qty;
   }
 
+  function shareOf(paise, subtotal) {
+    if (!BILL.subtotalPaise || !subtotal) return 0;
+    return Math.round((paise || 0) * subtotal / BILL.subtotalPaise);
+  }
+
   function calcMyTotal() {
-    let subtotal = 0;
-    ITEMS.forEach(item => {
-      const sel = selections[item.id];
-      if (!sel || !sel.selected) return;
-      subtotal += getItemAmount(item, sel.qty);
-    });
-    // Proportional tax
-    let tax = 0;
-    if (BILL.subtotalPaise > 0) {
-      tax = Math.round(BILL.taxPaise * subtotal / BILL.subtotalPaise);
-    }
-    // Proportional discount
-    let discount = 0;
-    if (BILL.subtotalPaise > 0) {
-      discount = Math.round(BILL.discountPaise * subtotal / BILL.subtotalPaise);
-    }
-    return Math.max(0, subtotal + tax - discount);
+    const subtotal = calcMySubtotal();
+    const tax = shareOf(BILL.taxPaise, subtotal);
+    const discount = shareOf(BILL.discountPaise, subtotal);
+    const service = shareOf(BILL.serviceChargePaise, subtotal);
+    return Math.max(0, subtotal + tax + service - discount);
   }
 
   function calcMySubtotal() {
@@ -698,11 +723,9 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
   function renderPayStep(myTotal) {
     const name = document.getElementById('nameInput').value.trim();
     const mySub = calcMySubtotal();
-    let myTax = 0, myDiscount = 0;
-    if (BILL.subtotalPaise > 0) {
-      myTax = Math.round(BILL.taxPaise * mySub / BILL.subtotalPaise);
-      myDiscount = Math.round(BILL.discountPaise * mySub / BILL.subtotalPaise);
-    }
+    const myTax = shareOf(BILL.taxPaise, mySub);
+    const myDiscount = shareOf(BILL.discountPaise, mySub);
+    const myService = shareOf(BILL.serviceChargePaise, mySub);
 
     // Build breakdown
     const breakdown = document.getElementById('payBreakdown');
@@ -716,7 +739,8 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
         : item.name;
       html += \`<div class="pay-row"><span class="pay-row-label">\${escapeHtml(label)}</span><span class="pay-row-val">\${fmtRupees(amt)}</span></div>\`;
     });
-    if (myTax > 0) html += \`<div class="pay-row"><span class="pay-row-label">Tax (proportional)</span><span class="pay-row-val">\${fmtRupees(myTax)}</span></div>\`;
+    if (myTax > 0) html += \`<div class="pay-row"><span class="pay-row-label">GST (proportional)</span><span class="pay-row-val">\${fmtRupees(myTax)}</span></div>\`;
+    if (myService > 0) html += \`<div class="pay-row"><span class="pay-row-label">Service charge</span><span class="pay-row-val">\${fmtRupees(myService)}</span></div>\`;
     if (myDiscount > 0) html += \`<div class="pay-row"><span class="pay-row-label">Discount</span><span class="pay-row-val" style="color:var(--accent)">−\${fmtRupees(myDiscount)}</span></div>\`;
     html += \`<div class="pay-row total"><span class="pay-row-label">\${escapeHtml(name)} pays</span><span class="pay-row-val">\${fmtRupees(myTotal)}</span></div>\`;
     breakdown.innerHTML = html;
@@ -736,7 +760,11 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
         BILL.ownerUpiId +
         (BILL.ownerUpiVerified ? ' <span class="verified-badge">✓ Verified</span>' : '');
       noUpiWarn.style.display = 'none';
-      gpayBtn.disabled = false;
+      gpayBtn.style.pointerEvents = '';
+      gpayBtn.style.opacity = '';
+      gpayBtn.href = gpayHref();
+      const hint = document.getElementById('gpayHint');
+      if (hint) hint.style.display = '';
       upiBtn.style.display = '';
       if (copyUpiBtn) copyUpiBtn.style.display = '';
 
@@ -754,7 +782,11 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
     } else {
       ownerInfo.style.display = 'none';
       noUpiWarn.style.display = '';
-      gpayBtn.disabled = true;
+      gpayBtn.style.pointerEvents = 'none';
+      gpayBtn.style.opacity = '0.4';
+      gpayBtn.href = '#';
+      const hint = document.getElementById('gpayHint');
+      if (hint) hint.style.display = 'none';
       upiBtn.style.display = 'none';
       if (copyUpiBtn) copyUpiBtn.style.display = 'none';
       if (qrContainer) qrContainer.style.display = 'none';
@@ -762,53 +794,59 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
   }
 
   // ─── UPI Payment ──────────────────────────────
-  function buildUpiUrl() {
-    const name = document.getElementById('nameInput').value.trim();
+  function upiQuery() {
     const myTotal = calcMyTotal();
     const amountRs = (myTotal / 100).toFixed(2);
-    const note = encodeURIComponent('SplitIt: ' + (BILL.title || BILL.merchantName));
-    const pa = encodeURIComponent(BILL.ownerUpiId);
-    const pn = encodeURIComponent(BILL.ownerName);
-    return \`upi://pay?pa=\${pa}&pn=\${pn}&am=\${amountRs}&cu=INR&tn=\${note}\`;
+    const tn = 'SplitIt: ' + (BILL.title || BILL.merchantName || 'Bill');
+    const fields = [
+      ['pa', BILL.ownerUpiId],
+      ['pn', BILL.ownerName || 'SplitIt'],
+      ['am', amountRs],
+      ['cu', 'INR'],
+      ['tn', tn],
+    ];
+    return fields.map(function (pair) {
+      return pair[0] + '=' + encodeURIComponent(pair[1]);
+    }).join('&');
   }
 
-  function payViaGPay() {
-    const myTotal = calcMyTotal();
-    if (myTotal === 0 || !BILL.ownerUpiId) return;
-    const amountRs = (myTotal / 100).toFixed(2);
-    const note = encodeURIComponent('SplitIt: ' + (BILL.title || BILL.merchantName));
-    const pa = encodeURIComponent(BILL.ownerUpiId);
-    const pn = encodeURIComponent(BILL.ownerName);
-
-    // GPay Android deep link Intent
-    const gpayAndroid = \`intent://pay?pa=\${pa}&pn=\${pn}&am=\${amountRs}&cu=INR&tn=\${note}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end\`;
-    // Standard UPI universal protocol
-    const upiUrl = \`upi://pay?pa=\${pa}&pn=\${pn}&am=\${amountRs}&cu=INR&tn=\${note}\`;
-
+  function gpayHref() {
+    const q = upiQuery();
     const isAndroid = /Android/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isAndroid) {
-      window.location.href = gpayAndroid;
-      setTimeout(() => {
-        window.location.href = upiUrl;
-      }, 700);
-    } else {
-      window.location.href = upiUrl;
+      // Chrome only opens Google Pay from an intent URL during the click.
+      return 'intent://pay?' + q + '#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end';
     }
+    if (isIOS) {
+      return 'gpay://upi/pay?' + q;
+    }
+    return 'upi://pay?' + q;
+  }
 
-    setTimeout(showSuccess, 1800);
+  function buildUpiUrl() {
+    return 'upi://pay?' + upiQuery();
+  }
+
+  function payViaGPay(e) {
+    if (e) e.preventDefault();
+    const myTotal = calcMyTotal();
+    if (myTotal === 0 || !BILL.ownerUpiId) {
+      showToast('Select items first');
+      return false;
+    }
+    window.location.href = gpayHref();
+    return false;
   }
 
   function payViaUpi() {
     const myTotal = calcMyTotal();
     if (myTotal === 0 || !BILL.ownerUpiId) return;
-    const upiUrl = buildUpiUrl();
-    window.location.href = upiUrl;
-    setTimeout(showSuccess, 1800);
+    window.location.href = buildUpiUrl();
   }
 
   function showSuccess() {
-    document.getElementById('step3').classList.remove('active');
-    document.getElementById('successSection').classList.add('active');
+    showStep('successSection');
     updatePills(3);
   }
 
@@ -819,6 +857,10 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
 </script>
 </body>
 </html>`;
+}
+
+function safeJsonForScript(json: string): string {
+  return json.replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
 
 function escapeHtml(str: string): string {

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import os from 'os';
 import { config } from './config';
 import { errorHandler } from './middleware/error';
 import { authRouter } from './modules/auth/auth.router';
@@ -9,6 +10,32 @@ import { billsRouter } from './modules/bills/bills.router';
 
 import { renderBillSplitPage } from './modules/bills/bills.web';
 import { BillsService } from './modules/bills/bills.service';
+
+/** First non-internal IPv4, preferring a typical home Wi-Fi address. */
+export function lanIPv4(): string | null {
+  const found: string[] = [];
+  for (const addrs of Object.values(os.networkInterfaces())) {
+    for (const addr of addrs ?? []) {
+      const family = addr.family as string | number;
+      const isV4 = family === 'IPv4' || family === 4;
+      if (!isV4 || addr.internal) continue;
+      if (addr.address.startsWith('169.254.')) continue;
+      found.push(addr.address);
+    }
+  }
+  return (
+    found.find((a) => a.startsWith('192.168.')) ||
+    found.find((a) => a.startsWith('10.')) ||
+    found.find((a) => a.startsWith('172.')) ||
+    found[0] ||
+    null
+  );
+}
+
+export function publicWebBaseUrl(): string {
+  const lan = lanIPv4();
+  return lan ? `http://${lan}:${config.port}` : `http://localhost:${config.port}`;
+}
 
 const app = express();
 
@@ -33,6 +60,19 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0',
     auth0Configured: Boolean(config.auth0.domain && config.auth0.audience),
     upiProvider: config.upi.provider,
+    webBaseUrl: publicWebBaseUrl(),
+  });
+});
+
+// Address phones on the same Wi-Fi should use for share links.
+app.get('/api/config', (req, res) => {
+  const webBaseUrl = publicWebBaseUrl();
+  res.json({
+    success: true,
+    data: {
+      webBaseUrl,
+      apiBaseUrl: `${webBaseUrl}/api`,
+    },
   });
 });
 
@@ -95,6 +135,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  Running on http://0.0.0.0:${PORT}`);
   console.log(`  Auth0 Mode: ${config.auth0.domain ? 'Production (JWKS)' : 'Development (JWT/Dev Token)'}`);
   console.log(`  UPI Provider: ${config.upi.provider}`);
+  console.log(`  Share links:  ${publicWebBaseUrl()}/split/<token>`);
   console.log(`========================================`);
 });
 

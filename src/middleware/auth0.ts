@@ -22,11 +22,26 @@ declare global {
 // Dev secret for testing when Auth0 credentials are not set
 const DEV_SECRET = 'splitit-dev-jwt-secret-2026';
 
-export const generateDevToken = (payload: { id: string; name: string; email?: string }) => {
+export const generateDevToken = (payload: {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+}) => {
   return jwt.sign({ ...payload, sub: `auth0|${payload.id}`, isGuest: false }, DEV_SECRET, {
     expiresIn: '7d',
   });
 };
+
+function applyDevUser(req: Request, verified: any) {
+  req.user = {
+    id: verified.id || verified.sub,
+    auth0Id: verified.sub,
+    email: verified.email,
+    name: verified.name || 'User',
+    isGuest: false,
+  };
+}
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
@@ -36,6 +51,22 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
   // 1. Check if token is provided
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
+
+    // OTP / dev login issues an HS256 token. Accept it even when Auth0 is configured,
+    // otherwise saving a UPI ID returns 401 after phone login.
+    const decodedHeader: any = jwt.decode(token, { complete: true });
+    const alg = decodedHeader?.header?.alg;
+    if (!decodedHeader?.header?.kid || alg === 'HS256') {
+      try {
+        const verified: any = jwt.verify(token, DEV_SECRET);
+        applyDevUser(req, verified);
+        return next();
+      } catch {
+        if (!config.auth0.domain) {
+          return res.status(401).json({ success: false, error: 'Unauthorized: Invalid token' });
+        }
+      }
+    }
 
     // If Auth0 domain is configured, verify against JWKS
     if (config.auth0.domain && config.auth0.audience) {

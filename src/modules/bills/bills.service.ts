@@ -16,6 +16,9 @@ export interface CreateBillInput {
   discountPaise?: number;
   serviceChargePaise?: number;
   originalImagePath?: string;
+  ownerName?: string;
+  upiId?: string;
+  payeeName?: string;
 }
 
 export class BillsService {
@@ -58,13 +61,29 @@ export class BillsService {
       token = this.generateShareToken();
     }
 
-    // Ensure owner exists in DB
+    const upiId = input.upiId?.trim().toLowerCase() || undefined;
+    const payeeName = input.payeeName?.trim() || undefined;
+    const ownerName = input.ownerName?.trim() || undefined;
+
+    // Ensure owner exists, and keep the UPI that will be paid on the share link.
     await prisma.user.upsert({
       where: { id: input.ownerId },
-      update: {},
+      update: {
+        ...(ownerName ? { name: ownerName } : {}),
+        ...(upiId
+          ? {
+              upiId,
+              upiVerified: true,
+              upiPayeeName: payeeName || ownerName,
+            }
+          : {}),
+      },
       create: {
         id: input.ownerId,
-        name: 'Bill Owner',
+        name: ownerName || 'Bill Owner',
+        upiId,
+        upiVerified: Boolean(upiId),
+        upiPayeeName: payeeName || ownerName,
       },
     });
 

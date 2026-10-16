@@ -3,8 +3,20 @@ import { BillsService } from './bills.service';
 
 export const createBillHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { merchantName, title, items, taxPaise, discountPaise, serviceChargePaise, originalImagePath } = req.body;
-    const ownerId = req.user?.id || req.body.ownerId || 'owner';
+    const {
+      merchantName,
+      title,
+      items,
+      taxPaise,
+      discountPaise,
+      serviceChargePaise,
+      originalImagePath,
+      ownerId: bodyOwnerId,
+      ownerName,
+      upiId,
+      payeeName,
+    } = req.body;
+    const ownerId = req.user?.id || bodyOwnerId || 'owner';
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, error: 'Bill must contain at least one item' });
@@ -19,6 +31,9 @@ export const createBillHandler = async (req: Request, res: Response, next: NextF
       discountPaise,
       serviceChargePaise,
       originalImagePath,
+      ownerName,
+      upiId,
+      payeeName,
     });
 
     res.status(201).json({ success: true, data: bill });
