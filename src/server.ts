@@ -129,14 +129,16 @@ app.use('/api/bills', billsRouter);
 app.use(errorHandler);
 
 const PORT = config.port;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`========================================`);
-  console.log(`  SplitIt Backend API`);
-  console.log(`  Running on http://0.0.0.0:${PORT}`);
-  console.log(`  Auth0 Mode: ${config.auth0.domain ? 'Production (JWKS)' : 'Development (JWT/Dev Token)'}`);
-  console.log(`  UPI Provider: ${config.upi.provider}`);
-  console.log(`  Share links:  ${publicWebBaseUrl()}/split/<token>`);
-  console.log(`========================================`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`========================================`);
+    console.log(`  SplitIt Backend API`);
+    console.log(`  Running on http://0.0.0.0:${PORT}`);
+    console.log(`  Auth0 Mode: ${config.auth0.domain ? 'Production (JWKS)' : 'Development (JWT/Dev Token)'}`);
+    console.log(`  UPI Provider: ${config.upi.provider}`);
+    console.log(`  Share links:  ${publicWebBaseUrl()}/split/<token>`);
+    console.log(`========================================`);
+  });
+}
 
 export default app;

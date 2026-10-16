@@ -5,6 +5,12 @@ import { prisma } from '../../db/prisma';
 const getUserId = (req: Request): string | null =>
   (req as any).user?.id || req.headers['x-user-id'] as string || null;
 
+/** Express types route params as `string | string[]`. These routes always have one id. */
+const routeId = (value: string | string[] | undefined): string => {
+  const id = Array.isArray(value) ? value[0] : value;
+  return id ?? '';
+};
+
 // ── Verify UPI ID (public endpoint) ─────────────────────────────────────────
 export const verifyUpiHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -120,7 +126,8 @@ export const deleteUpiIdHandler = async (req: Request, res: Response, next: Next
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Not authenticated' });
 
-    const { upiIdRecordId } = req.params;
+    const upiIdRecordId = routeId(req.params.upiIdRecordId);
+    if (!upiIdRecordId) return res.status(400).json({ success: false, error: 'UPI record id is required' });
 
     const record = await prisma.userUpi.findFirst({
       where: { id: upiIdRecordId, userId },
@@ -162,7 +169,8 @@ export const setPrimaryUpiHandler = async (req: Request, res: Response, next: Ne
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Not authenticated' });
 
-    const { upiIdRecordId } = req.params;
+    const upiIdRecordId = routeId(req.params.upiIdRecordId);
+    if (!upiIdRecordId) return res.status(400).json({ success: false, error: 'UPI record id is required' });
 
     const record = await prisma.userUpi.findFirst({
       where: { id: upiIdRecordId, userId },
