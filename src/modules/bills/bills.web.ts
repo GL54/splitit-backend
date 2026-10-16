@@ -477,7 +477,7 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
     <!-- QR Code for desktop / quick scan -->
     <div id="qrCodeContainer" style="text-align:center; display:none; margin: 16px 0;"></div>
 
-    <a class="btn btn-gpay" id="payGpayBtn" href="#" onclick="return payViaGPay(event)">
+    <a class="btn btn-gpay" id="payGpayBtn" href="#">
       Pay with Google Pay
     </a>
     <p id="gpayHint" style="font-size:12px;color:var(--grey);text-align:center;margin-top:10px;display:none;">
@@ -762,7 +762,7 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
       noUpiWarn.style.display = 'none';
       gpayBtn.style.pointerEvents = '';
       gpayBtn.style.opacity = '';
-      gpayBtn.href = gpayHref();
+      gpayBtn.setAttribute('href', 'upi://pay?' + upiQuery());
       const hint = document.getElementById('gpayHint');
       if (hint) hint.style.display = '';
       upiBtn.style.display = '';
@@ -803,30 +803,8 @@ export function renderBillSplitPage(bill: any, queryUpiId?: string, queryOwnerNa
     return 'pa=' + pa + '&am=' + amountRs + '&cu=INR&tn=SplitIt';
   }
 
-  function gpayHref() {
-    const q = upiQuery();
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (isAndroid) {
-      // Chooser, not a forced Google Pay handoff. A forced handoff to a
-      // personal @okaxis ID is what the bank rejects as a limit error.
-      return 'intent://pay?' + q + '#Intent;scheme=upi;end';
-    }
-    return 'upi://pay?' + q;
-  }
-
   function buildUpiUrl() {
     return 'upi://pay?' + upiQuery();
-  }
-
-  function payViaGPay(e) {
-    if (e) e.preventDefault();
-    const myTotal = calcMyTotal();
-    if (myTotal === 0 || !BILL.ownerUpiId) {
-      showToast('Select items first');
-      return false;
-    }
-    window.location.href = gpayHref();
-    return false;
   }
 
   function payViaUpi() {
