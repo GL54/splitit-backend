@@ -67,8 +67,12 @@ export const addUpiIdHandler = async (req: Request, res: Response, next: NextFun
     const { upiId } = req.body;
     if (!upiId) return res.status(400).json({ success: false, error: 'upiId is required' });
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+    const guestName = (req as any).user?.name as string | undefined;
+    const user = await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, name: guestName || 'Guest' },
+    });
 
     // Verify UPI with NPCI
     const verification = await UpiVerificationService.verifyUpiId(upiId, user.name);
