@@ -32,7 +32,28 @@ export function lanIPv4(): string | null {
   );
 }
 
-export function publicWebBaseUrl(): string {
+export function publicWebBaseUrl(req?: {
+  get(name: string): string | undefined;
+}): string {
+  const fromEnv = process.env.WEB_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+
+  // On Vercel the function has no public LAN address. Using localhost here
+  // makes every share link point at the phone, where nothing is listening.
+  if (process.env.VERCEL) {
+    const forwarded = req?.get('x-forwarded-host')?.split(',')[0]?.trim();
+    const hostHeader = req?.get('host')?.split(',')[0]?.trim();
+    const host = forwarded || hostHeader;
+    const local = !host || host.startsWith('localhost') || host.startsWith('127.0.0.1');
+    if (!local) {
+      const proto = (req?.get('x-forwarded-proto') || 'https').split(',')[0].trim();
+      return `${proto}://${host}`;
+    }
+    const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.replace(/^https?:\/\//, '');
+    if (production) return `https://${production}`;
+    return 'https://splitit-backend.vercel.app';
+  }
+
   const lan = lanIPv4();
   return lan ? `http://${lan}:${config.port}` : `http://localhost:${config.port}`;
 }
@@ -60,13 +81,13 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0',
     auth0Configured: Boolean(config.auth0.domain && config.auth0.audience),
     upiProvider: config.upi.provider,
-    webBaseUrl: publicWebBaseUrl(),
+    webBaseUrl: publicWebBaseUrl(req),
   });
 });
 
 // Address phones on the same Wi-Fi should use for share links.
 app.get('/api/config', (req, res) => {
-  const webBaseUrl = publicWebBaseUrl();
+  const webBaseUrl = publicWebBaseUrl(req);
   res.json({
     success: true,
     data: {
