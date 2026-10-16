@@ -65,6 +65,9 @@ export const addUpiIdHandler = async (req: Request, res: Response, next: NextFun
     if (!userId) return res.status(401).json({ success: false, error: 'Not authenticated' });
 
     const { upiId } = req.body;
+    const requestedPayeeName = typeof req.body.payeeName === 'string'
+      ? req.body.payeeName.trim()
+      : '';
     if (!upiId) return res.status(400).json({ success: false, error: 'upiId is required' });
 
     const guestName = (req as any).user?.name as string | undefined;
@@ -94,13 +97,18 @@ export const addUpiIdHandler = async (req: Request, res: Response, next: NextFun
     const existingCount = await prisma.userUpi.count({ where: { userId } });
     const isPrimary = existingCount === 0;
 
+    const payeeName =
+      (verification.registeredPayeeName && process.env.UPI_VERIFICATION_PROVIDER === 'cashfree'
+        ? verification.registeredPayeeName
+        : requestedPayeeName || verification.registeredPayeeName) || null;
+
     const newUpi = await prisma.userUpi.create({
       data: {
         userId,
         upiId: verification.upiId,
         bankName: verification.bankName,
         handle: verification.handle,
-        payeeName: verification.registeredPayeeName,
+        payeeName,
         isVerified: true,
         isPrimary,
       },
@@ -113,7 +121,7 @@ export const addUpiIdHandler = async (req: Request, res: Response, next: NextFun
         data: {
           upiId: verification.upiId,
           upiVerified: true,
-          upiPayeeName: verification.registeredPayeeName,
+          upiPayeeName: payeeName,
         },
       }).catch(() => {});
     }

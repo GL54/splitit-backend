@@ -119,11 +119,13 @@ export class UpiVerificationService {
     // Simulate network latency (200ms)
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    // Formulate realistic bank registered name based on claimed name or handle
-    const baseName = claimedUserName?.trim() || username;
-    const registeredPayeeName = baseName.toUpperCase() + (baseName.includes(' ') ? '' : ' G.');
+    // Without a paid verification provider, the bank name is unknown.
+    // Do not invent one. A wrong name makes Google Pay reject the payment.
+    const registeredPayeeName = claimedUserName?.trim() || undefined;
 
-    const confidence = claimedUserName ? calculateNameSimilarity(claimedUserName, registeredPayeeName) : 1.0;
+    const confidence = claimedUserName && registeredPayeeName
+      ? calculateNameSimilarity(claimedUserName, registeredPayeeName)
+      : 0;
 
     return {
       valid: true,
